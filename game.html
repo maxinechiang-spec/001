@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 科學人年會 - 講師認臉選擇題</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --accent: #2b6cb0;
+            --success: #38a169;
+            --error: #e53e3e;
+            --bg: #f7fafc;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: #2d3748;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .quiz-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .header {
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin: 0 0 6px 0;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .photo-container {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px auto;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid var(--accent);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #4a5568;
+        }
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .option-btn {
+            background: #edf2f7;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: #2d3748;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .option-btn:hover:not(:disabled) {
+            background: #e2e8f0;
+            border-color: var(--accent);
+        }
+        .option-btn.correct {
+            background: #c6f6d5 !important;
+            border-color: var(--success) !important;
+            color: #22543d !important;
+        }
+        .option-btn.wrong {
+            background: #fed7d7 !important;
+            border-color: var(--error) !important;
+            color: #742a2a !important;
+        }
+        .next-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+        .next-btn:hover {
+            opacity: 0.9;
+        }
+        .result-screen {
+            display: none;
+        }
+        .score-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="quiz-card">
+    <!-- 答題區域 -->
+    <div id="quiz-screen">
+        <div class="header">
+            <h1>2026 科學人年會 認臉測驗</h1>
+            <div style="font-size: 0.85rem; color: #718096;">
+                題目 <span id="current-q">1</span> / <span id="total-q">0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="photo-container">
+            <img id="speaker-img" src="" alt="講師照片">
+        </div>
+
+        <div class="question-title">請問這位講師是誰？</div>
+
+        <div class="options-grid" id="options-container">
+            <!-- 選項按鈕會由 JS 動態生成 -->
+        </div>
+
+        <button class="next-btn" id="next-btn" onclick="nextQuestion()">下一題 ➔</button>
+    </div>
+
+    <!-- 結算頁面 -->
+    <div class="result-screen" id="result-screen">
+        <h1>測驗完成！</h1>
+        <p style="color: #718096;">年會現場認人指日可待！</p>
+        <div class="score-display"><span id="final-score">0</span> 分</div>
+        <p id="result-msg" style="margin-bottom: 24px; font-weight: bold;"></p>
+        <button class="next-btn" style="display: block;" onclick="restartQuiz()">再測一次</button>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 講師資料庫 (可自行新增、修改)
+    // ==========================================
+    const speakers = [
+        { id: 1, name: "曾文毅", title: "腦齡及失智預防", image: "https://github.com/maxinechiang-spec/001/blob/main/0101.jpg?raw=true" },
+        { id: 2, name: "陳亮恭", title: "肌少症以及肌肉老化", image: "https://github.com/maxinechiang-spec/001/blob/main/0102.jpg" },
+        { id: 3, name: "謝伯讓", title: "腦科學與人類意識", image: "https://github.com/maxinechiang-spec/001/blob/main/0103.png?raw=true" },
+        { id: 4, name: "張慶瑞", title: "全球都在瘋量子，台灣機會在哪裡", image: "https://github.com/maxinechiang-spec/001/blob/main/0104.jpg?raw=true" },
+        { id: 5, name: "程世嘉", title: "主動駕馭AI浪潮", image: "https://github.com/maxinechiang-spec/001/blob/main/0105.jpg?raw=true" },
+        { id: 6, name: "連加恩", title: "智慧醫療", image: "https://github.com/maxinechiang-spec/001/blob/main/0106.jpg?raw=true" }
+    ];
+
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+
+    function initQuiz() {
+        // 洗牌問題順序
+        currentQuestions = [...speakers].sort(() => 0.5 - Math.random());
+        currentIndex = 0;
+        score = 0;
+        document.getElementById('total-q').textContent = currentQuestions.length;
+        document.getElementById('quiz-screen').style.display = 'block';
+        document.getElementById('result-screen').style.display = 'none';
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = currentQuestions[currentIndex];
+        document.getElementById('current-q').textContent = currentIndex + 1;
+        document.getElementById('speaker-img').src = q.image;
+        document.getElementById('next-btn').style.display = 'none';
+
+        // 更新進度條
+        const progress = ((currentIndex) / currentQuestions.length) * 100;
+        document.getElementById('progress-fill').style.width = `${progress}%`;
+
+        // 產生選項 (1個正確答案 + 3個隨機干擾項)
+        const distractors = speakers.filter(s => s.id !== q.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+        const options = [q, ...distractors].sort(() => 0.5 - Math.random());
+
+        const optionsContainer = document.getElementById('options-container');
+        optionsContainer.innerHTML = '';
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerHTML = `<span>${opt.name}</span><span style="font-size:0.75rem; opacity:0.7;">${opt.title}</span>`;
+            btn.onclick = () => selectOption(btn, opt.id === q.id);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function selectOption(selectedBtn, isCorrect) {
+        // 停用所有選項，防止重複點擊
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(btn => btn.disabled = true);
+
+        if (isCorrect) {
+            selectedBtn.classList.add('correct');
+            score++;
+        } else {
+            selectedBtn.classList.add('wrong');
+            // 標示出正確答案
+            const q = currentQuestions[currentIndex];
+            allBtns.forEach(btn => {
+                if (btn.textContent.includes(q.name)) {
+                    btn.classList.add('correct');
+                }
+            });
+        }
+
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function nextQuestion() {
+        currentIndex++;
+        if (currentIndex < currentQuestions.length) {
+            loadQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        
+        const finalPercentage = Math.round((score / currentQuestions.length) * 100);
+        document.getElementById('final-score').textContent = finalPercentage;
+
+        let msg = "";
+        if (finalPercentage === 100) msg = "🎯 太強了！你是年會認臉達人，現場可以直接當 VIP 導覽！";
+        else if (finalPercentage >= 60) msg = "👍 表現不錯！大部分講師都能認出來了！";
+        else msg = "💪 再刷一次測驗，年會現場就不怕尷尬臉盲囉！";
+        
+        document.getElementById('result-msg').textContent = msg;
+    }
+
+    function restartQuiz() {
+        initQuiz();
+    }
+
+    window.onload = initQuiz;
+</script>
+
+</body>
+</html>
